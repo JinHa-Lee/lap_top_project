@@ -1,6 +1,9 @@
 import pymysql
-
+import crawling_data
 import make_sql_database
+
+
+item_data = crawling_data.naver_api_crawling()
 
 make_sql_database.create_db("test")
 
