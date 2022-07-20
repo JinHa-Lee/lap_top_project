@@ -1,4 +1,8 @@
+import os
+
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.offline import init_notebook_mode
 
 # I used a kaggle laptop data
 # From https://www.kaggle.com/datasets/kuchhbhi/2022-march-laptop-data
@@ -59,13 +63,69 @@ laptop_df.drop(
     columns=["model", "processor_brand", "processor_name", "processor_gnrtn", "ram_type", "ram_gb", "reviews"],
     inplace=True)
 
-laptop_df['processor_brand'].value_counts()
-laptop_df['processor_gnrtn'].value_counts()
-laptop_df['processor'].value_counts()
-laptop_df['ram'].value_counts()
-laptop_df['model'].value_counts()
-
 # rating 변수는 별점 횟수이며 star_rating 은 평균 별점으로 예측
 # rating 변수가 없는 값은 star_rating도 없다. 이는 리뷰도 동일
-# rating 변수를 판매량을 보여주는 지표로 생각해도 괜찮지 않을까
 # 따라서 나머지 변수와 rating 과 관련된 정보를 분석해서 모델을 만들어 본다.
+# rating 변수를 확인하면 0인 값이 상당히 많고 중앙값이 17 이며 제 3 사분위수는 143 이다.
+# 이를 이용하여 rating > 100 인 값을 good_item 변수로 만들어서 분류 모델을 만들어 학습한다.
+# brand ram processor 중 value_count < 10 인 값은 etc로 저장한다.
+for i in range(len(laptop_df)):
+    if laptop_df.loc[i, "ratings"] >= 100:
+        laptop_df.loc[i, "good_item"] = 1
+    else:
+        laptop_df.loc[i, "good_item"] = 0
+    if laptop_df['brand'].value_counts()[laptop_df.loc[i, "brand"]] < 10:
+        laptop_df.loc[i, "brand_eng"] = "etc"
+    else:
+        laptop_df.loc[i, "brand_eng"] = laptop_df.loc[i, "brand"]
+    if laptop_df['processor'].value_counts()[laptop_df.loc[i, "processor"]] < 10:
+        laptop_df.loc[i, "processor_eng"] = "etc"
+    else:
+        laptop_df.loc[i, "processor_eng"] = laptop_df.loc[i, "processor"]
+    if laptop_df['ram'].value_counts()[laptop_df.loc[i, "ram"]] < 10:
+        laptop_df.loc[i, "ram_eng"] = "etc"
+    else:
+        laptop_df.loc[i, "ram_eng"] = laptop_df.loc[i, "ram"]
+
+laptop_df['good_item'] = laptop_df['good_item'].astype(int)
+
+# 문자열로 이루어진 변수들과 rating의 상관관계를 알기 힘들기 때문에 문자열로 이루어진 변수를 더미 변수화 해준다.
+# 각 변수별로 너무 적은 value_count를 가지는 값은 하나로 합친다
+# os weight touchscreen msofiice
+# old price는 latest_price 와 discount 로 설명할수 있다고 판단하고 삭제한다
+
+
+laptop_df['processor_eng'].value_counts()
+laptop_df['brand_eng'].value_counts()
+laptop_df['ram_eng'].value_counts()
+laptop_df['os'].value_counts()
+laptop_df['os_bit'].value_counts()
+laptop_df['graphic_card_gb'].value_counts()
+laptop_df['weight'].value_counts()
+laptop_df.info()
+
+if not os.path.exists("kaggle_images"):
+    os.mkdir("kaggle_images")
+
+init_notebook_mode()
+
+fig = go.Figure()
+fig.add_trace(
+    go.Heatmap(z=laptop_df.corr().values.tolist(),
+               x=laptop_df.corr().columns.tolist(),
+               y=laptop_df.corr().columns.tolist(),
+               colorscale="Reds"
+               )
+)
+fig.update_layout(
+    {
+        "title": {
+            "text": "Heatmap from laptop_df (22.07.14)",
+            "font": {
+                "size": 14
+            }
+        }
+    }
+)
+
+fig.write_image("kaggle_images/heatmap_chart.png")
