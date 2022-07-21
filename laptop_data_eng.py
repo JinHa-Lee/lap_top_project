@@ -3,6 +3,9 @@ import os
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.offline import init_notebook_mode
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.preprocessing import LabelEncoder
 
 # I used a kaggle laptop data
 # From https://www.kaggle.com/datasets/kuchhbhi/2022-march-laptop-data
@@ -68,9 +71,11 @@ laptop_df.drop(
 # 따라서 나머지 변수와 rating 과 관련된 정보를 분석해서 모델을 만들어 본다.
 # rating 변수를 확인하면 0인 값이 상당히 많고 중앙값이 17 이며 제 3 사분위수는 143 이다.
 # 이를 이용하여 rating > 100 인 값을 good_item 변수로 만들어서 분류 모델을 만들어 학습한다.
+# star_rating이 값들의 정보를 살펴 보면 중위수 가 4.1임을 알수 있다.
+# 이를 이용하여 rating > 100 이고 star_rating > 4.1값을 good_item 변수에 1로 정한다
 # brand ram processor 중 value_count < 10 인 값은 etc로 저장한다.
 for i in range(len(laptop_df)):
-    if laptop_df.loc[i, "ratings"] >= 100:
+    if (laptop_df.loc[i, "ratings"] >= 100) and (laptop_df.loc[i, "star_rating"] > 4.1):
         laptop_df.loc[i, "good_item"] = 1
     else:
         laptop_df.loc[i, "good_item"] = 0
@@ -94,15 +99,37 @@ laptop_df['good_item'] = laptop_df['good_item'].astype(int)
 # os weight touchscreen msofiice
 # old price는 latest_price 와 discount 로 설명할수 있다고 판단하고 삭제한다
 
+laptop_df.drop(
+    columns=['brand', 'processor', 'ram', "ratings", "star_rating", 'old_price'],
+    inplace=True)
 
-laptop_df['processor_eng'].value_counts()
-laptop_df['brand_eng'].value_counts()
-laptop_df['ram_eng'].value_counts()
-laptop_df['os'].value_counts()
-laptop_df['os_bit'].value_counts()
-laptop_df['graphic_card_gb'].value_counts()
-laptop_df['weight'].value_counts()
-laptop_df.info()
+os_map = {"Windows": 0, "Mac": 1, "Missing": 9}
+weight_map = {"Casual": 0, "ThinNlight": 1, "Gaming": 2}
+touch_map = {"No": 0, "Yes": 1}
+msoffice_map = {"No": 0, "Yes": 1}
+
+laptop_df["os"] = laptop_df["os"].map(os_map)
+laptop_df["weight"] = laptop_df["weight"].map(weight_map)
+laptop_df["Touchscreen"] = laptop_df["Touchscreen"].map(touch_map)
+laptop_df["msoffice"] = laptop_df["msoffice"].map(msoffice_map)
+
+laptop_string = laptop_df[["brand_eng", "processor_eng", "ram_eng"]]
+laptop_string = laptop_string.apply(LabelEncoder().fit_transform)
+
+laptop_df.drop(
+    columns=["brand_eng", "processor_eng", "ram_eng"],
+    inplace=True)
+
+laptop_df = pd.concat([laptop_string, laptop_df], axis=1)
+x_data = laptop_df.iloc[:, :-1]
+y_data = laptop_df[["good_item"]]
+
+RF = RandomForestClassifier()
+k_fold = KFold(n_splits=10, shuffle=True, random_state=8)
+score = cross_val_score(RF, x_data, y_data, cv=k_fold, n_jobs=-1, scoring='accuracy')
+
+print(score)
+# 정확도의 편차가 큰것으로 확인된다. 하이퍼 파라미터 튜닝을 하거나 데이터 전처리를 더 해야할듯
 
 if not os.path.exists("kaggle_images"):
     os.mkdir("kaggle_images")
@@ -128,4 +155,4 @@ fig.update_layout(
     }
 )
 
-fig.write_image("kaggle_images/heatmap_chart.png")
+fig.write_image("kaggle_images/heatmap_chart_eng_data.png")
