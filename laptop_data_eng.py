@@ -126,10 +126,13 @@ y_data = laptop_df[["good_item"]]
 
 RF = RandomForestClassifier()
 k_fold = KFold(n_splits=10, shuffle=True, random_state=8)
+RF.fit(x_data,y_data)
 score = cross_val_score(RF, x_data, y_data, cv=k_fold, n_jobs=-1, scoring='accuracy')
 
 print(score)
+print(RF.feature_importances_)
 # 정확도의 편차가 큰것으로 확인된다. 하이퍼 파라미터 튜닝을 하거나 데이터 전처리를 더 해야할듯
+# feature_importances_ 값으로는 brand processor price discount 가 중요하게 나온다
 
 if not os.path.exists("kaggle_images"):
     os.mkdir("kaggle_images")
