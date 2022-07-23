@@ -159,3 +159,24 @@ fig.update_layout(
 )
 
 fig.write_image("kaggle_images/heatmap_chart_eng_data.png")
+
+fig = go.Figure()
+fig.add_trace(
+    go.Bar(x=x_data.columns,
+           y=RF.feature_importances_,
+           text = RF.feature_importances_.round(2),
+           textposition= "outside"
+           )
+)
+fig.update_layout(
+    {
+        "title": {
+            "text": "feature_importances (22.07.14)",
+            "font": {
+                "size": 14
+            }
+        }
+    }
+)
+
+fig.write_image("kaggle_images/feature_importances.png")
